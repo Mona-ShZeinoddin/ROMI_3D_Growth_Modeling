@@ -1,0 +1,27 @@
+import os
+from openalea.plantgl.all import *
+from random import seed, random, randint, uniform, gauss
+from numpy import arange
+import numpy as np
+from math import *
+import logging
+from scan_utils import *
+
+
+extern(N=10)
+extern(alpha=10)
+
+seed(alpha)
+
+Axiom: A
+
+derivation length: N
+production:
+
+A:
+  nproduce @Ts(0.2)@Tp(random(),random(),random())_(0.6)nF(3,0.6)A
+  
+interpretation:
+
+
+endlsystem

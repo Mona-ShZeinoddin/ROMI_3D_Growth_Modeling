@@ -1,0 +1,169 @@
+from random import random
+import numpy as np
+import math as mth
+T = 10
+j = 2
+w = 3
+z = Vector3()
+nb_seg = 10
+len_seg = 1./nb_seg
+module Flower,?P()
+
+Axiom: A(0,0,0)
+
+#Axiom: Leaf_fruit(5,5)
+production:
+
+derivation length: 7
+
+A(a,s,l):
+  if s == 0:
+    nproduce A(a+1,s,l)
+    if a ==2:
+      nproduce S[+(60)F(0.2+random());(2)@O(0.12)][-(60)F(0.2+random());(2)@O(0.12)]A(a+1,s+1,l)
+      
+  if s == 1:
+   nproduce @Ts(0.2);(2)@Tp(0,0,1+random()*10)nF(1,0.1)[@Ts(2);(2)@Tp(1,1,1+random()*10)+(60+random()*10)/(90+random()*10)Leaf(j,w)][-(60)\(90)Leaf(j+random(),w)]@Tp(0,0,1+random()*10)nF(1,0.1)/(90)[+(60+random()*10)/(90+random()*10)Leaf(j,w+random())][-(60)\(90)Leaf(j,w+random())]\(90)A(a+1,s,l+1)
+   if l == 1:
+    nproduce A(a,s+1,l)?P(z)
+    print(z)
+    nproduce @M(z)
+  if s == 2:
+    nproduce [@Tp(0,1,0)@Ts(0.02)_(0.08);(2)nF(2,0.1,0)@Ts(0)Flower(1,1)]A(a+1,s+1,l)
+  if s == 3:
+    nproduce /(10)[@Ts(20)@Tp(0,-10,-10)+(50)/(90)Leaf_fruit(j/2,w/2+random())]
+    nproduce [-(40)\(90)Leaf(j/2,w/2+random())]
+
+    
+     
+     
+interpretation: 
+maximum depth :10
+
+?P(x,y,z):
+  nproduce p(x,y,z)
+petal(l,w):
+  # control of the discretization
+  nb_seg = 10
+  len_seg = 1./nb_seg
+  nproduce [&(20);(2) @Gc Sweep(nerve,section,l/3+random(),len_seg,w/3,width_law)];(0) @Gc Sweep(nerve,section,l+random(),len_seg,w,width_law)
+
+Flower(l,w):
+  nproduce [petal(l,w)][\(90)petal(l,w)][/(90)petal(l,w)][/(180)petal(l,w)]
+
+S: 
+  produce @Ts(5)@Tp(0,0,1);(2)F(1+2*random())
+
+Leaf(l,w):
+  # control of the discretization
+  nb_seg = 10
+  len_seg = 1./nb_seg
+  nproduce @Ts(0.001)@Tp(0,-1,0)+(30)_(0.05)F(0.5+random());(2)_(0.03)F(0.5+random());(2)&(20)@Gc Sweep(nerve,section,l,len_seg,w,width_law)
+  
+Leaf_fruit(l,w):
+  # control of the discretization
+  nb_seg = 10
+  len_seg = 1./nb_seg
+  nproduce _(0.06)F(0.5+random())[&(100)f(1.7)[\(30)@Ts(10)@Tp(0,-10,0)Fruiting(1,1)]];(2)_(0.06)F(0.5+random(),0);(2)@Gc Sweep(nerve,section,l,len_seg,w,width_law)
+
+Fruiting(branch,bell):
+  nproduce ;(3)Bell(bell)^(180);(2)[Pedecel_top]Pedecel_Branch(branch)
+  
+Pedecel_Branch(scale):
+  carpel_nb = 4
+  carpel_profiles = [profile0, profile1]
+  fruit_profiles = []
+  for i in range(carpel_nb):
+    fruit_profiles.append(carpel_profiles[0])
+    fruit_profiles.append(carpel_profiles[1])
+  fruit_profiles.append(carpel_profiles[0])
+  #print(fruit_profile_list)
+  anglelist = [i*360/(carpel_nb*2) for i in range(carpel_nb*2+1)]
+  swung = Swung(profileList=fruit_profiles,angleList=list(map(mth.radians,anglelist)),stride=100, slices=100, ccw=True)
+  nproduce @Ts(10)@Tp(0,-10,0);(2)@g(swung, scale)
+  
+Pedecel_top:
+  nb_seg = 10
+  len_seg = 1./nb_seg
+  nproduce ^(90)[@Gc Sweep(Pedecel_nerve,Pedecel_section,0.4,len_seg,1,Pedecel_width)][+(90)@Gc Sweep(Pedecel_nerve,Pedecel_section,0.4,len_seg,1,Pedecel_width)][-(90)@Gc Sweep(Pedecel_nerve,Pedecel_section,0.4,len_seg,1,Pedecel_width)][-(180)@Gc Sweep(Pedecel_nerve,Pedecel_section,0.4,len_seg,1,Pedecel_width)]
+  
+Bell(scale): 
+  carpel_nb = 4
+  sx, sy,sz = 1,1,1.5 # scale factors on x,y,z
+  fruit_profiles = [profile0_Bell,profile1_Bell,profile0_Bell,profile1_Bell,profile0_Bell,profile1_Bell,profile0_Bell,profile1_Bell,profile0_Bell]
+  anglelist = [i*360/(carpel_nb*2) for i in range(carpel_nb*2+1)]
+  swung = Swung(profileList=fruit_profiles,angleList=list(map(mth.radians,anglelist)),stride=40, slices=40, ccw=True)
+  fruit = Scaled(sx,sy,sz, swung)
+  nproduce @g(fruit, scale)
+  
+endlsystem
+###### INITIALISATION ######
+
+__lpy_code_version__ = 1.1
+
+def __initialiseContext__(context):
+	scalars = [('el', 'Integer', 1, 0, 100)]
+	context["__scalars__"] = scalars
+	for s in scalars:
+		if not s[1] == "Category" : context[s[0]] = s[2]
+	import openalea.plantgl.all as pgl
+	nerve = pgl.Polyline2D(	
+	    pgl.Point2Array([(-0.5, 0),(-0.382622, -0.0609756),(-0.239329, -0.0945122),(-0.0838415, -0.14939),(0.0558943, -0.204268),(0.169207, -0.265244),(0.261179, -0.338415),(0.349085, -0.405488),(0.434451, -0.460366),(0.490854, -0.503049)]) , 
+	    )
+	nerve.name = "nerve"
+	section = pgl.Polyline2D(	
+	    pgl.Point2Array([(-0.5, 0),(-0.474085, -0.0243902),(-0.464939, -0.0457317),(-0.425305, -0.0579268),(-0.391768, -0.0731707),(-0.358232, -0.0853659),(-0.333841, -0.0884146),(-0.272866, -0.103659),(-0.245427, -0.118902),(-0.208841, -0.128049),(-0.163618, -0.14939),(-0.129573, -0.176829),(-0.089939, -0.192073),(-0.0685976, -0.198171),(-0.0320122, -0.213415),(-0.00457317, -0.213415),(0.0289634, -0.213415),(0.0685976, -0.20122),(0.114329, -0.185976),(0.135671, -0.152439),(0.157012, -0.140244),(0.1875, -0.118902),(0.221037, -0.097561),(0.260671, -0.0792683),(0.282012, -0.070122),(0.319106, -0.054878),(0.5, 0)]) , 
+	    )
+	section.name = "section"
+	import openalea.plantgl.all as pgl
+	width_law = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(0, 0, 1),(0.0347682, 0.0761589, 1),(0.0612583, 0.125828, 1),(0.0943709, 0.162252, 1),(0.11755, 0.201987, 1),(0.137417, 0.241722, 1),(0.183775, 0.298013, 1),(0.213576, 0.337748, 1),(0.256623, 0.380795, 1),(0.289735, 0.390728, 1),(0.349338, 0.430464, 1),(0.349338, 0.427152, 1),(0.418874, 0.437086, 1),(0.461921, 0.456954, 1),(0.498344, 0.456954, 1),(0.557947, 0.460265, 1),(0.597682, 0.443709, 1),(0.637417, 0.427152, 1),(0.667219, 0.390728, 1),(0.667219, 0.390728, 1),(0.730132, 0.347682, 1),(0.793046, 0.278146, 1),(0.862583, 0.231788, 1),(0.885762, 0.178808, 1),(0.928808, 0.13245, 1),(0.961921, 0.0960265, 1),(0.975166, 0.0496689, 1),(1, 0, 1)]) , 
+	    )
+	width_law.name = "width_law"
+	profile0_Bell = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.000583378, -8.67362e-19, 1),(0.401696, -0.045268, 1),(0.448629, 0.423181, 1),(0.411773, 1.0355, 1),(-0.0132985, 0.996342, 1)]) , 
+	    )
+	profile0_Bell.name = "profile0_Bell"
+	profile1_Bell = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.00319812, 0.00522949, 1),(0.608107, -0.190099, 1),(0.636103, 0.482102, 1),(0.461365, 1.16764, 1),(-0.0106946, 0.988577, 1)]) , 
+	    )
+	profile1_Bell.name = "profile1_Bell"
+	Pedecel_width = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(0, 0, 1),(0, 0.217391, 1),(0.0810544, 0.266306, 1),(0.139512, 0.318269, 1),(0.256427, 0.396212, 1),(0.366847, 0.487146, 1),(0.477267, 0.552099, 1),(0.557065, 0.608696, 1),(0.633153, 0.552099, 1),(0.717592, 0.500137, 1),(0.841002, 0.383222, 1),(0.938431, 0.318269, 1),(0.990394, 0.136401, 1),(1, 0.219777, 1),(1, 0, 1)]) , 
+	    )
+	Pedecel_width.name = "Pedecel_width"
+	Pedecel_nerve = pgl.Polyline2D(	
+	    pgl.Point2Array([(-0.5, 0),(-0.116858, -0.0498084),(0.189655, -0.0842912),(0.511494, -0.122605)]) , 
+	    )
+	Pedecel_nerve.name = "Pedecel_nerve"
+	Pedecel_section = pgl.Polyline2D(	
+	    pgl.Point2Array([(-0.5, 0),(-0.442529, -0.0172414),(-0.381226, -0.032567),(-0.323755, -0.0555556),(-0.254789, -0.0708812),(-0.208812, -0.0708812),(-0.128352, -0.0766284),(-0.0708812, -0.0862069),(-0.0249042, -0.0862069),(0.0517241, -0.0862069),(0.109195, -0.0785441),(0.17433, -0.0689655),(0.266284, -0.059387),(0.33908, -0.0478927),(0.411877, -0.0402299),(0.5, 0)]) , 
+	    )
+	Pedecel_section.name = "Pedecel_section"
+	profile1 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.00319812, 0.00522949, 1),(0.40722, 0.0453923, 1),(0.0394879, 0.506086, 1),(0.0910064, 0.863432, 1),(0.0231835, 1.70195, 1)]) , 
+	    )
+	profile1.name = "profile1"
+	profile0 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.000583378, -8.67362e-19, 1),(0.210783, 0.0612137, 1),(0.0700215, 0.529807, 1),(0.0453442, 0.985514, 1),(0.0261387, 1.7025, 1)]) , 
+	    )
+	profile0.name = "profile0"
+	panel_0 = ({'name': 'Panel', 'active': True, 'visible': True},[('Curve2D',nerve),('Curve2D',section),('Function',width_law),('Curve2D',profile0_Bell),('Curve2D',profile1_Bell),('Function',Pedecel_width),('Curve2D',Pedecel_nerve),('Curve2D',Pedecel_section),('Curve2D',profile1),('Curve2D',profile0)])
+	parameterset = [panel_0,]
+	context["__functions__"] = [('width_law',width_law),('Pedecel_width',Pedecel_width),]
+	context["__curves__"] = [('nerve',nerve),('section',section),('profile0_Bell',profile0_Bell),('profile1_Bell',profile1_Bell),('Pedecel_nerve',Pedecel_nerve),('Pedecel_section',Pedecel_section),('profile1',profile1),('profile0',profile0),]
+	context["__parameterset__"] = parameterset
+	context["nerve"] = nerve
+	context["section"] = section
+	context["width_law"] = pgl.QuantisedFunction(width_law)
+	context["profile0_Bell"] = profile0_Bell
+	context["profile1_Bell"] = profile1_Bell
+	context["Pedecel_width"] = pgl.QuantisedFunction(Pedecel_width)
+	context["Pedecel_nerve"] = Pedecel_nerve
+	context["Pedecel_section"] = Pedecel_section
+	context["profile1"] = profile1
+	context["profile0"] = profile0
+__authors__ = 'C. Godin, F. Boudon'
+__institutes__ = 'INRIA - CIRAD Virtual Plants'
+__copyright__ = 'open-source GPL'
+__description__ = '- This is a dichotomic tree (bi-chasial sympode). Make a monochasial sympodial plant.  '

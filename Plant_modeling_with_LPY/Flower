@@ -1,0 +1,53 @@
+from openalea.plantgl.all import *
+from random import random
+l =1
+w = 1
+module petal,Flower
+Axiom: @Tp(1,0,0)@Ts(0.02)_(0.08);(2)nF(2,0.1,0)@Ts(0)Flower(1,1)
+
+
+derivation length: 1
+production: 
+
+
+interpretation:
+maximum depth :2
+petal(l,w,alpha):
+  # control of the discretization
+  nb_seg = 10
+  len_seg = 1./nb_seg
+  nproduce [&(20);(2) @Gc Sweep(nerve,section,l/3,len_seg,w/3,width_law)];(0) @Gc Sweep(nerve,section,l,len_seg,w,width_law)
+
+Flower(l,w):
+  nproduce [petal(l,w)][\(90)petal(l,w)][/(90)petal(l,w)][/(180)petal(l,w)]
+
+endlsystem
+###### INITIALISATION ######
+
+__lpy_code_version__ = 1.1
+
+def __initialiseContext__(context):
+	context.options.setSelection('Axiom decomposition',1)
+	import openalea.plantgl.all as pgl
+	width_law = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(0, 0, 1),(0.0480132, 0.0695364, 1),(0.0976821, 0.152318, 1),(0.147351, 0.198675, 1),(0.183775, 0.245033, 1),(0.216887, 0.281457, 1),(0.243377, 0.337748, 1),(0.30298, 0.387417, 1),(0.34989, 0.450331, 1),(0.402318, 0.466887, 1),(0.445364, 0.483444, 1),(0.491722, 0.483444, 1),(0.548013, 0.490066, 1),(0.610927, 0.490066, 1),(0.660596, 0.47351, 1),(0.696468, 0.44702, 1),(0.700331, 0.430464, 1),(0.736755, 0.380795, 1),(0.773179, 0.357616, 1),(0.793046, 0.311258, 1),(0.819536, 0.278146, 1),(0.849338, 0.241722, 1),(0.875828, 0.201987, 1),(0.922185, 0.155629, 1),(0.93543, 0.10596, 1),(0.971854, 0.0761589, 1),(1, 0, 1)]) , 
+	    )
+	width_law.name = "width_law"
+	import openalea.plantgl.all as pgl
+	section = pgl.Polyline2D(	
+	    pgl.Point2Array([(-0.5, 0),(-0.440549, -0.027439),(-0.41311, -0.0487805),(-0.373476, -0.0640244),(-0.342988, -0.0853659),(-0.315549, -0.0945122),(-0.294207, -0.131098),(-0.266768, -0.152439),(-0.227134, -0.170732),(-0.181911, -0.198171),(-0.120427, -0.210366),(-0.0868902, -0.22561),(-0.0564024, -0.22561),(-0.0259146, -0.234756),(0.00152439, -0.234756),(0.0289634, -0.234756),(0.0625, -0.216463),(0.0868902, -0.20122),(0.117378, -0.20122),(0.150915, -0.179878),(0.181402, -0.152439),(0.224593, -0.121951),(0.254573, -0.0945122),(0.306402, -0.0823171),(0.5, 0)]) , 
+	    )
+	section.name = "section"
+	nerve = pgl.Polyline2D(	
+	    pgl.Point2Array([(-0.5, 0),(-0.446646, -0.0152439),(-0.376524, -0.0365854),(-0.324695, -0.0426829),(-0.291159, -0.054878),(-0.254573, -0.0640244),(-0.199695, -0.0731707),(-0.150915, -0.0884146),(-0.0995935, -0.0945122),(-0.0503049, -0.109756),(-0.0137195, -0.131098),(0.0259146, -0.137195),(0.0533537, -0.161585),(0.0929878, -0.179878),(0.123476, -0.20122),(0.15752, -0.228659),(0.199695, -0.256098),(0.242378, -0.277439),(0.275915, -0.307927),(0.303354, -0.323171),(0.33689, -0.35061),(0.378049, -0.384146),(0.419207, -0.417683),(0.452744, -0.439024),(0.480183, -0.460366),(0.510671, -0.490854)]) , 
+	    )
+	nerve.name = "nerve"
+	panel_0 = ({'name': 'Panel 1', 'active': True, 'visible': True},[('Function',width_law),('Curve2D',section),('Curve2D',nerve)])
+	panel_1 = ({'name': 'Panel 2', 'active': True, 'visible': True},[])
+	parameterset = [panel_0,panel_1,]
+	context["__functions__"] = [('width_law',width_law),]
+	context["__curves__"] = [('section',section),('nerve',nerve),]
+	context["__parameterset__"] = parameterset
+	context["width_law"] = pgl.QuantisedFunction(width_law)
+	context["section"] = section
+	context["nerve"] = nerve
