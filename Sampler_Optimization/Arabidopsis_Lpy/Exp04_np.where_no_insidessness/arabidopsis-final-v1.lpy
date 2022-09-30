@@ -1,0 +1,984 @@
+"""
+ReaANGLEistic simulation of a growing Arabidopsis inflorescence  
+based on measurements
+
+	Ch. Godin, F. Besnard
+	Inria/Inrae - 2022
+	
+Version for bending with Tropism. Slight bug when animated with sudden "jumps" in the stems. Look as if something was discontinuous in te calculation of the tropism.
+"""
+
+import os
+from openalea.plantgl.all import *
+from numpy import arange
+import numpy as np
+import math
+import random as rd
+#from random import seed, random, randint, uniform, gauss
+# from openalea.plantgl.math import Matrix3
+
+##################
+# Model variables
+##################
+
+SEED = 1
+
+rd.seed(SEED)
+
+# Time is counted in hours in the model
+day = 24. # 18 constant defined for convenience in hours
+
+nb_days = 33 # gauss(MEAN_NB_DAYS,STDEV_NB_DAYS)
+# Simulation time is given in hours, e.g. 240 corresponds to 10 days
+SimulationTime = nb_days*day   # in hours, e.g. 24h * 25 days =
+
+T = 10.                        # X plastochrone in hours
+
+#########################
+# Simulation Parameters
+#########################
+
+dt = 1.                  # in hours. Unique parameter to change
+                         # time dicretization (this should hardly affect
+                         # simulations beyond integration approximations)
+
+# number of time units for simulation
+NbSimulationSteps = int(SimulationTime/float(dt))
+
+BRANCHON = False         # If True, creates long lateral branches. If false, create only lateral flowers
+
+#alpha = 137.5				  # X conctant divergence angle in degrees
+
+#print("alpha",alpha)
+
+#########################
+# Geometry
+
+cm = 1. # 1 cm = 1 PlantGl grid unit
+
+#########################
+# Organs
+##########################
+
+
+# Internode
+##InternodeSize = 1.                # scaling coefficient, to adapt the model petal size to the plant size
+InternodeSize = rd.uniform(0.9,1.1)
+
+InternodeInitialLength = 0.01*cm  # X
+InternodeInitialDiam   = 0.05*cm # X
+InternodeInitialWidth  = 0.05*cm # X not used
+InternodeInitialOpeningAngle = 0  # (in degrees) not used 
+
+###InternodeFinalLength = 2.*cm      # X
+InternodeFinalLength = rd.gauss(2,0.4)
+##InternodeFinalDiam   = 0.14*cm    # X these are diameters: WARNING when use them where radius are expected 
+InternodeFinalDiam   = rd.gauss(0.14,0.014)*cm 
+##InternodeFinalWidth  = 0.07*cm    # X not used
+InternodeFinalWidth  = rd.gauss(0.07,0.007)*cm 
+InternodeFinalOpeningAngle = 0    # (in degrees)
+
+InternodeColor = 6
+####hay o hooy nakon mona, ghose be jun nakhar mona, ash ha ro ham nazan mona, negarane mehdi nabash mona, doa bishtar bokon mona, tavakol bayad bokoni mona, gheresh bede yala mona, hala bayad pashi mona, 
+##Haaaay haaay
+
+##
+
+
+InternodeDelay    = 25*T        # X 
+InternodeHalfLife = 31*T        # X 
+InternodeLifespan = 100*T       # X
+InternodeSuddenty = 3.          # X set such that at 38*T we are very close to InternodeFinalLength
+
+# Leaf
+petiol_prop = 0.33              # X 
+#leafsize = 4.5*cm               # X
+leafsize = rd.uniform(4,5)
+
+# Pedicel
+##PedicelSize = 1.              # scaling coefficient, to adapt the model petal size to the plant size
+PedicelSize = rd.uniform(0.9,1.1)
+
+PedicelInitialLength = 0.01*cm  # X
+PedicelInitialDiam   = 0.01*cm  # X
+PedicelInitialWidth  = 0.01*cm  # X not used
+PedicelInitialOpeningAngle = 0  # (in degrees) not used
+
+###PedicelFinalLength = 1.5*cm     # X
+PedicelFinalLength = rd.gauss(1.5,0.15)*cm  
+###PedicelFinalDiam   = 0.05*cm    # X
+PedicelFinalDiam   = rd.gauss(0.05,0.005)*cm 
+###PedicelFinalWidth  = 0.05*cm    # X not used
+PedicelFinalWidth  = rd.gauss(0.05,0.005)*cm
+PedicelFinalOpeningAngle = 0    # (in degrees) not used
+
+PedicelColor = 2
+
+PedicelDelay    = 3.0*T         # X
+PedicelHalfLife = 31*T          # X
+PedicelLifespan = 100*T         # X
+PedicelSuddenty = 1.            # X set such that at 38*T we are very close to InternodeFinalLength
+                                # to be estimated on data
+
+# Sepals
+###SepalSize = 1.0                # scaling coefficient, to adapt the petal size to the plant size
+SepalSize = rd.uniform(0.9,1.1)
+
+SepalInitialLength = 0.1*cm   #
+SepalInitialDiam   = 0.01*cm  #
+SepalInitialWidth  = 0.2*cm   #
+SepalInitialOpeningAngle = rd.gauss(5,0.5)   # (in degrees)
+
+###SepalFinalLength = 0.2*cm     # X
+SepalFinalLength = rd.gauss(0.2,0.02)*cm
+###SepalFinalDiam   = 0.05*cm    # X (diam of the whorl)
+SepalFinalDiam   = rd.gauss(0.05,0.005)*cm
+###SepalFinalWidth  = 0.8*cm     # X
+SepalFinalWidth  = rd.gauss(0.8,0.08)*cm 
+##SepalFinalOpeningAngle = 15   # X(in degrees)
+SepalFinalOpeningAngle = rd.gauss(15,1.5)      
+
+SepalColor = 2
+
+SepalDelay    = 0.0*T         # X
+SepalHalfLife = 13*T          # X
+SepalLifespan = 32*T          # X
+
+SepalSuddenty = 1.
+
+# Petals (first test: we assume that the cinematic is the same as for sepals .... to be checked)
+###PetalSize = 1.               # scaling coefficient, to adapt the petal size to the plant size
+PetalSize = rd.uniform(0.9,1.1)
+
+PetalInitialLength = 0.05*cm   # X
+PetalInitialDiam   = 0.01*cm   # X (not used?)
+PetalInitialWidth  = 0.1*cm    # 
+PetalInitialOpeningAngle = 0   # X (in degrees)
+
+###PetalFinalLength = 0.35*cm      # X
+PetalFinalLength = rd.gauss(0.35,0.035)*cm
+###PetalFinalDiam   = 0.045*cm     # X (diam of the whorl)
+PetalFinalDiam   = rd.gauss(0.045,0.0045)*cm
+###PetalFinalWidth  = 0.6*cm      # X
+PetalFinalWidth  = rd.gauss(0.6,0.06)*cm  
+###PetalFinalOpeningAngle = 10    # X (in degrees)
+PetalFinalOpeningAngle = rd.gauss(10,1.5)   
+
+PetalColor = 0
+
+PetalDelay    = 0.0*T          # X
+PetalHalfLife = 20*T           # X
+PetalLifespan = 32*T           # X
+
+PetalSuddenty = 2.              # such that petal reach their final length 6*T before 32*T = at 26*T
+
+# Carpels
+###CarpelSize = 1                  # scaling coefficient, to adapt the model petal size to the plant size
+CarpelSize = rd.uniform(0.9,1.1)
+
+CarpelInitialLength = 0.01*cm   # X
+CarpelInitialDiam = 0.01*cm     # X (max)
+CarpelInitialWidth = 0.001*cm   # X
+CarpelInitialOpeningAngle = 0   # X (in degrees)
+
+###CarpelFinalLength = 1.5*cm      # X
+CarpelFinalLength = rd.gauss(1.5,0.15)*cm
+###CarpelFinalDiam = 0.06*cm       # X (diam max)
+CarpelFinalDiam = rd.gauss(0.06,0.006)*cm
+####CarpelFinalWidth = 0.009*cm     # X (diam min)
+CarpelFinalWidth = rd.gauss(0.009,0.0009)*cm
+CarpelFinalOpeningAngle = 0     # X (in degrees)
+
+CarpelColor = 2
+
+CarpelDelay = 5*T               # X
+CarpelHalfLife = 40*T           # = CarpelDelay + 10*T
+CarpelLifespan = 100*T          # 
+CarpelSuddenty = 2.             # So that the carpel overtakes the petal final length by 1.5 mm when the petal disappears
+
+# Discretization
+nb_seg = 10                     # discretization of a leaf blade
+#len_seg = 1./nb_seg
+
+####MAXELASTICITY = 1.0
+MAXELASTICITY = rd.uniform(0.9,1.1)
+
+#AXISID = 0
+
+#########################
+# Meristem 
+#########################
+
+# A meristem has a physiological age defined by an integer x
+#   x=0 :veg
+#   x=1 :veginflo
+#   x=2 :inflo
+#   x=3 :flower
+#
+
+# Durations in physiological ages (in # of plastochrones)
+# Simulations times are above the sum of these numbers will
+# end up with fruits only
+
+MAXVEGPLAST = 20     # plastochrones in vegetative state
+MAXVEGINFLOPLAST = 3 # plastochrones in veginflo state
+MAXINFLOPLAST = 100  # plastochrones in inflo state
+
+# Delay before the growth of a lateral meristem
+GrowthDelay = 5*T    # Growth delay of lateral meristems (in hours). 
+                     # Corresponds to the parammeter ITI of Kieffer 1998
+
+##########################
+# Interpolation of curves
+##########################
+
+# To interpolate between organ curves
+def retrieveCurves(name):
+  # Determine the set of curve representing axis at different time from the LPy global variables
+  # Look for object in global namespace name axisX
+  #print(name)
+  curves = [(n,v) for n,v in globals().items() if name in n and type(v) == NurbsCurve2D ]
+  # sort curves according to their names
+  for n,v in curves: v.name = n
+  curves = [v for n,v in curves]
+  curves.sort(key = lambda x : x.name)
+  #for v in curves: print(v.name)
+
+  return curves
+
+sepal_curves = retrieveCurves('sepal_nerve')
+nbSepalcurves = len(sepal_curves)
+# ProfileInterpolation takes a set of curves and an ordered list of indexes between 0 and 1
+# indicating which interpolation index is assigned to each curve.
+sepal_curves_func = ProfileInterpolation(sepal_curves, [i/float(nbSepalcurves-1) for i in range(nbSepalcurves)])
+
+petal_curves = retrieveCurves('petal_nerve')
+nbPetalcurves = len(petal_curves)
+# ProfileInterpolation takes a set of curves and an ordered list of indexes between 0 and 1
+# indicating which interpolation index is assigned to each curve.
+petal_curves_func = ProfileInterpolation(petal_curves, [i/float(nbPetalcurves-1) for i in range(nbPetalcurves)])
+
+clnerve_curves = retrieveCurves('clnerve')
+nbclnervecurves = len(clnerve_curves)
+# ProfileInterpolation takes a set of curves and an ordered list of indexes between 0 and 1
+# indicating which interpolation index is assigned to each curve.
+clnerve_curves_func = ProfileInterpolation(clnerve_curves, [i/float(nbclnervecurves-1) for i in range(nbclnervecurves)])
+
+#########################
+# Simulation code
+#########################
+
+#########################
+# Numerical parameters
+eps = 0.00001           # equality threshold for 2 real numbers 
+
+# HillCurve: an S shape function controlled by:
+# - x is the input value
+# - x0 is the shift in x before the curve starts to increase (no shift by default)
+# - yrange =[ymin,ymax]: the minimal and maximal values of y (ymin reached for x = x0
+#   note that delta2ymax: such that ymax = ymin + delta2ymax
+# - xa: such that x0 + xa is the x-location of the inflexion point (at x0+xa: y = y0+delta2ymax/2)
+# - n: the curve stiffness (the larger n the stiffer the curve)
+# Note that for n = 1 the curve has no inflexion point
+# a and x0 are parameters related to x-axis. If the time for example is dilated
+# (by saying for example that a plastochrone is doubled, then these parameters
+# should also be scaled accordingly. This is why they are always given
+# as a function of the plastochrone when calls are made to hillcurve.
+
+def hillcurve(x,x0,yrange,xa,n):
+  ymin = yrange[0]
+  delta2ymax = yrange[1]-yrange[0]
+  if x > x0:
+    return ymin + ((x-x0)**n)*(delta2ymax)/(xa**n + (x-x0)**n)
+  else:
+    return ymin
+
+
+# Physiological state s = (x,n)
+# x is the physiological state
+#   x=0 :veg
+#   x=1 :veginflo
+#   x=2 :inflo
+#   x=3 :flower
+#
+# n is the # plastochrones in this state since creation of this meristem (current life span)
+
+class MeristemData:
+  
+  AXISID = 0
+  
+  def __init__(self, physio_age=0, plastnb = 0, statedur = 0, order=0, rank = 0):
+    self.age = 0      # age since created in time units
+    self.timecnt = 0  # time counter since last lat prod (cumulates dt for comparison with T)
+    self.plastnb = plastnb  # in plastochrones (= # of lateral prods produced by this meristem)
+    self.physio_age = physio_age
+    self.rank = rank
+    self.statedur = statedur # nb pf plastochrones in this physio state
+    if order == 0 or order == 1:
+      self.dormant = False
+    else:
+      self.dormant = True
+    
+    self.order = order
+    self.axisid = MeristemData.AXISID
+    MeristemData.AXISID += 1
+    #print("AXISID = ", MeristemData.AXISID) 
+
+# An organ model takes sets of initial and final values that define the characteristics 
+# of the geometric model of an organ and returns interpolated values 
+# i.e. the geometric model becomes a continuous fonction of time, G(t)
+class OrganModel:
+  def __init__(self, initial_length, initial_diam, initial_width, initial_opening_angle, final_length, final_diam, final_width, final_opening_angle, lifespan, color, size):
+    self.initial_length = initial_length
+    self.initial_diam = initial_diam
+    self.initial_width = initial_width
+    self.initial_opening_angle = initial_opening_angle
+    self.final_length = final_length
+    self.final_diam = final_diam
+    self.final_width = final_width
+    self.final_opening_angle = final_opening_angle
+    self.lifespan = lifespan
+    self.color = color
+    self.size = size
+    self.randomseed = rd.random() # randomseed generated at creation for each organ for further used later
+
+  def length(self,tau): # these default linear functions can be overwritten in the subclasses
+    return (self.initial_length + tau * (self.final_length - self.initial_length))*self.size
+
+  def diam(self,tau):
+    return (self.initial_diam + tau * (self.final_diam - self.initial_diam))*self.size
+
+  def width(self,tau):
+    return (self.initial_width + tau * (self.final_width - self.initial_width))*self.size
+
+  def opening_angle(self,tau):
+    return self.initial_opening_angle + tau * (self.final_opening_angle - self.initial_opening_angle)
+
+  def shed(self,tau):
+    return tau > self.lifespan
+
+class InternodeModel(OrganModel):
+  def __init__(self,
+               meristem,
+               age = 0,
+               initial_length = InternodeInitialLength,
+               initial_diam = InternodeInitialDiam,
+               initial_width = InternodeInitialWidth,
+               initial_opening_angle = InternodeInitialOpeningAngle,
+               final_length = InternodeFinalLength,
+               final_diam = InternodeFinalDiam,
+               final_width = InternodeFinalWidth,
+               final_opening_angle = InternodeFinalOpeningAngle,
+               lifespan = InternodeLifespan,
+               color = InternodeColor,
+               size = InternodeSize
+               ):
+    super().__init__(initial_length, initial_diam, initial_width, initial_opening_angle, final_length, final_diam, final_width, final_opening_angle, lifespan, color, size)
+    self.order = meristem.order
+    self.physio_age = meristem.physio_age
+    self.age = age
+    self.rank = meristem.rank
+    self.axisid = meristem.axisid
+
+#  # This function could be better defined in an abstract class for flat organs
+#  def getNerve(self, tau):
+#    if self.curvesPatch != None:
+#      return getSectionAt(tau,self.curvesPatch)
+#    else:
+#      return None
+
+class SepalModel(OrganModel):
+  def __init__(self,
+               initial_length = SepalInitialLength,
+               initial_diam = SepalInitialDiam,
+               initial_width = SepalInitialWidth,
+               initial_opening_angle = rd.gauss(5,0.5),
+               final_length = SepalFinalLength,
+               final_diam = SepalFinalDiam,
+               final_width = SepalFinalWidth,
+               final_opening_angle = rd.gauss(15,1.5),
+               lifespan = SepalLifespan,
+               color = SepalColor,
+               size = SepalSize,
+               curvesPatch = None
+               ):
+    super().__init__(initial_length, initial_diam, initial_width, initial_opening_angle, final_length, final_diam, final_width, final_opening_angle, lifespan, color, size)
+#    self.curvesPatch = curvesPatch
+#  
+# This function could be defined in an abstract class for flat organs
+#  def getNerve(self, tau):
+#    if self.curvesPatch != None:
+#      return getSectionAt(tau,self.curvesPatch)
+#    else:
+#      return None
+
+class PetalModel(OrganModel):
+  def __init__(self,
+               initial_length = PetalInitialLength,
+               initial_diam = PetalInitialDiam,
+               initial_width = PetalInitialWidth,
+               initial_opening_angle = rd.gauss(0,2),
+               final_length = PetalFinalLength,
+               final_diam = PetalFinalDiam,
+               final_width = PetalFinalWidth,
+               final_opening_angle = rd.gauss(10,1.5),
+               lifespan = PetalLifespan,
+               color = PetalColor,
+               size = PetalSize,
+               curvesPatch = None
+               ):
+    super().__init__(initial_length, initial_diam, initial_width, initial_opening_angle, final_length, final_diam, final_width, final_opening_angle, lifespan, color, size)
+#    self.curvesPatch = curvesPatch
+#    
+#  def getNerve(self, tau):
+#    if self.curvesPatch != None:
+#      return getSectionAt(tau,self.curvesPatch)
+#    else:
+#      return None
+
+class CarpelModel(OrganModel):
+  def __init__(self,
+               initial_length = CarpelInitialLength,
+               initial_diam = CarpelInitialDiam,
+               initial_width = CarpelInitialWidth,
+               initial_opening_angle = CarpelInitialOpeningAngle,
+               final_length = CarpelFinalLength,
+               final_diam = CarpelFinalDiam,
+               final_width = CarpelFinalWidth,
+               final_opening_angle = CarpelFinalOpeningAngle,
+               lifespan = CarpelLifespan,
+               color = CarpelColor,
+               size = CarpelSize
+               ):
+    super().__init__(initial_length, initial_diam, initial_width, initial_opening_angle, final_length, final_diam, final_width, final_opening_angle, lifespan, color, size)
+
+class PedicelModel(OrganModel):
+  def __init__(self,
+               initial_length = PedicelInitialLength,
+               initial_diam = PedicelInitialDiam,
+               initial_width = PedicelInitialWidth,
+               initial_opening_angle = PedicelInitialOpeningAngle,
+               final_length = PedicelFinalLength,
+               final_diam = PedicelFinalDiam,
+               final_width = PedicelFinalWidth,
+               final_opening_angle = PedicelFinalOpeningAngle,
+               lifespan = PedicelLifespan,
+               color = PedicelColor,
+               size = PedicelSize
+               ):
+    super().__init__(initial_length, initial_diam, initial_width, initial_opening_angle, final_length, final_diam, final_width, final_opening_angle, lifespan, color, size)
+
+# make a transition of the apical meristem
+# i.e. deterrmines its new physio_age, and state duration
+def apicalTransition(d):
+  statedur = d.statedur
+  s = d.physio_age
+  if s == 0: #VEG
+    if statedur >= MAXVEGPLAST:
+      d.physio_age = 1 # pass to VEGINFLO
+      d.statedur = 0
+  elif s == 1: #VEGINFLO
+    if statedur >= MAXVEGINFLOPLAST:
+      d.physio_age = 2 # pass to INFLO
+      d.statedur = 0
+  elif s == 2: #INFLO
+    if statedur >= MAXINFLOPLAST:
+      d.physio_age = 3
+      d.statedur = 0
+
+def lateralProduction(d):
+  d.plastnb += 1 # inc the number of lat prods produced by this meristem
+  d.timecnt = 0  # reset counter since last lat prod
+  d.rank += 1
+  s = d.physio_age
+  if s == 0: #VEG
+    lateral_physio_age = 1
+  elif s == 1: #VEGINFLO
+    lateral_physio_age = 1
+  elif s == 2: #INFLO
+    lateral_physio_age = 3
+  else:
+    lateral_physio_age = -1
+    print ("Error lateral physio age")
+  return MeristemData(lateral_physio_age, 0, d.statedur, d.order+1)
+
+# Increment time for meristems, by dt
+# and checks if dormant meristem (for meristems that start a new branch)
+def incTime(d,dt):
+  d.age +=dt       # inc age since meristem creation
+  d.timecnt += dt  # inc cnt since last lat prod
+
+def checkLateralInitiationCondition(d):
+  o = d.order
+  s = d.physio_age
+  if (o == 0 and s > 0) or (o == 1 and s > 1):
+    return True
+  else:
+    return False
+    
+def checkIfMustProduce(d):
+  if d.dormant == True: # a new meristem needs more time to create a primordium
+    timeToGrow = T + GrowthDelay
+  else: 
+    timeToGrow = T     # by definition a meristem must wait 1 plastochrone before creating a new lateral primordium
+  if d.timecnt > timeToGrow: # Time to create a new lateral primordium has been reached
+    d.dormant = False
+    return True
+  else:
+    return False
+
+def toPlastochron(time):
+  return time / T
+
+def gaussian(x, mu, sig):
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+    
+def deflection_angle(d):
+  #v = hillcurve(d.age,0*day,[0,1],10*day,4)  
+  v = gaussian(d.age, 10*day, 1*day)
+  deflection = v*1 # degrees
+  return deflection
+  
+module Flower, Leaf, clLeaf, Pedicel, Petals, Carpel, SepalWhorl, Sepal, SepalMod, PetalWhorl, Petal, PetalMod
+
+def End(lstring, lscene):
+  lst = []
+  for shape in lscene:
+    id = shape.id
+    lst.append(lstring[id].name)
+  lst_set = set(lst)
+  unique_lst = (list(lst_set)) 
+  for x in unique_lst:
+    print(x)
+   
+Axiom: 
+  #nproduce [SimBar(0,NbSimulationSteps,200)]
+  #to bend a bit the steem
+  nproduce -(1)
+  nproduce /(90)
+  nproduce @Tp(0,0,1)@Ts(MAXELASTICITY*0.02)
+  d = MeristemData()
+  nproduce M(d)
+
+derivation length: NbSimulationSteps
+
+production:
+
+M(d):
+  if checkIfMustProduce(d):
+    if d.physio_age == 3:
+      produce Flower(0)
+    else: # lateral production
+      d.statedur += 1 
+      id = InternodeModel(d)
+      age_plast = toPlastochron(d.age)
+      if age_plast <= 2: pass
+        #nproduce @Tp(0,0,1)@Ts(MAXELASTICITY*0.08)
+      elif age_plast >2 and age_plast < 4: pass
+        #nproduce @Tp(0,0,-1)@Ts(MAXELASTICITY*0.2)
+      else: pass
+        #nproduce @Tp(0,0,1)@Ts(MAXELASTICITY*0.08)
+      #nproduce ?H?U I(id)
+      if d.physio_age ==2: # Only for inflorescence meristems (not for mixed states
+        if d.order == 0:
+          # the tip of the main stem bends less than that of lateral branches 
+          nproduce @Tp(0,0,-1)@Ts(rd.uniform(0.9,1.1)*0.11)I(id) 
+        else:
+          nproduce @Tp(0,0,-1)@Ts(rd.uniform(0.9,1.1)*0.13)I(id) 
+      else:
+        #nproduce @Tp(0,0,-1)@Ts(MAXELASTICITY*0.01)I(id)         
+        nproduce @Tp(0,0,1)@Ts(rd.uniform(0.9,1.1)*0.02)I(id) 
+      alpha = rd.gauss(137.5,18) 
+      ##print(alpha)     
+      nproduce /(alpha)
+      # compute axillary leaf
+      if d.physio_age < 2:
+        rnumber = 0.8 #rd.random()
+        nproduce [L(0, d.age, d.physio_age,rnumber)]
+      # Compute lateral production
+      md = lateralProduction(d)
+      if d.physio_age == 2 or checkLateralInitiationCondition(d) : # in inflo state always produce a flower
+        nproduce [Beta(0) M(md)]
+  # And keep an apical growth
+  apicalTransition(d)
+  incTime(d,dt)
+  produce M(d)
+
+@Tp(x,y,z)@Ts(e)I(d):
+  if d.physio_age == 2: #and not math.isclose(z,1.):
+    coef = 0.0003  # the final result is very sensitive to this value
+    if z < 0:
+      #if d.rank == 4 and d.axisid == 3: print("z=",z)
+      #print ("e = ",e)
+      e = e - coef * dt 
+      if e <=0:
+        z = 1
+        e = -e    # e becomes positive again
+        #if d.rank == 4 and d.axisid == 3 : print ("Change of sign e = ",e)
+    else:
+      #if d.rank == 4 and d.axisid == 4: print("z=",z)
+      #print ("e = ",e)
+      e = min(MAXELASTICITY*0.02,e + coef * dt)
+  d.age += dt
+  produce @Tp(x,y,z)@Ts(e)I(d)
+
+Flower(t):
+  nproduce Flower(t + dt)
+
+L(t, age_initiated, physio_age,r):
+  produce L(t+dt, age_initiated, physio_age,r)
+
+Beta(t):
+  nproduce Beta(t+dt):
+
+
+interpretation:
+maximum depth: 4
+
+Beta(t):
+  valrange = [40,75] # to map t on tau
+  beta = hillcurve(t,5*day,valrange,30*T,2)
+  produce ^(-beta)
+
+# Internode (includes the phyllotaxy). ?F gets the current turtle's frame
+#?H(head)?U(up)I(d):
+I(d):
+  valrange = [0,1] # to map t on tau
+  if d.physio_age == 1:
+    delay = 12*T
+  else:
+    delay = InternodeDelay
+  tau = hillcurve(d.age,delay,valrange,InternodeHalfLife,InternodeSuddenty)
+  if d.physio_age == 0:
+    length = InternodeInitialLength
+  elif d.physio_age == 1:
+    length = d.length(tau) # internodes in veg-inflo phase are longer
+  else:
+    length = d.length(tau)
+  diam = d.diam(tau)
+  color = 2 #d.color
+  
+  # To bend the end of the axes
+  #  if d.age < 20*day and d.age >= 19*day and d.physio_age >=1:
+  #    r = d.randomseed
+  #    if d.order == 0:
+  #      e = 0 #0.003 # * r
+  #    else: 
+  #      e = 0.007 # * r
+  #    nproduce nproduce @Tp(0,0,-1)
+  #    nproduce @Ts(MAXELASTICITY*e)
+  
+  # nproduce @Tp(0,0,1)@Ts(MAXELASTICITY*0.02)
+  # print("Head",head)
+  
+  
+  #  da = deflection(d)
+  #  h = np.array(head)     # Turtle's head
+  #  u = np.array(up)       # Turtle's left
+  #
+  #  v = np.array([0,0,1])   # vertical direction
+  #
+  #  rvect = np.cross(h, v) # vector defining the rotation axis
+  #  
+  #  if np.allclose(rvect, np.array([0.,0.,0.])):
+  #    rvec = up
+  #    #print("v colinear to h")
+  #  ##print(rvect)
+  #  newhead = Matrix3.axisRotation(rvect, np.radians(da)) * head
+  #  newleft = Matrix3.axisRotation(rvect, np.radians(da)) * up
+  #  
+  #nproduce @R(head,up)
+  #if not math.isclose(da,0):
+  #  nproduce ^(da)
+  
+  produce ;(color)_(diam/3.)nF(length,1/20.)
+
+# an organ has a proper time (here t) since it was created (t=0)
+# shift is the moment where its start to grow
+
+Flower(t):
+  # At the scale of flowers, we also need to control the speed 
+  flower_size = 1.
+  #valrange = [0,15.*day]
+  #FlowerHalfLife = 4.*day
+  #FlowerDelay = 0.*day
+  #FlowerSuddenty = 2.8
+  #tau = hillcurve(t,FlowerDelay,valrange,FlowerHalfLife,FlowerSuddenty)
+  nproduce Pedicel(t, flower_size)
+  nproduce SepalWhorl(t, flower_size)
+  nproduce PetalWhorl(t, flower_size)
+  nproduce Carpel(t,flower_size)
+  #nproduce SepalWhorl(tau, flower_size)
+  #nproduce PetalWhorl(tau, flower_size)
+  #nproduce Carpel(tau,flower_size)
+
+Pedicel(t, size):
+  valrange = [0,1] # to map t on tau
+  tau = hillcurve(t,PedicelDelay,valrange,PedicelHalfLife,PedicelSuddenty)
+  pedicelmod = PedicelModel(size = size) # all values are initialized by default from global Sepal variables
+  if t < PedicelLifespan :
+    produce PedicelMod(pedicelmod, tau)
+
+PedicelMod(pedicelmod, tau):
+    length = pedicelmod.length(tau)*rd.uniform(0.8,1)
+    diam = pedicelmod.diam(tau)*rd.uniform(0.8,1)
+    angle = pedicelmod.opening_angle(tau)*rd.uniform(0.8,1)
+    width = pedicelmod.width(tau)*rd.uniform(0.8,1)
+    # computing pedicel elasticity depending on pedicel stage
+    tau_min = 0.43
+    tau_max = 0.52
+    if tau <= tau_min:
+      e = pedicel_elasticity(0)
+    elif tau > tau_min and tau < tau_max:
+      u = (tau-tau_min)/(tau_max-tau_min)
+      e = pedicel_elasticity(u)
+    else:
+      e = pedicel_elasticity(1)*rd.gauss(1,0.9)
+    if e < 0:
+      nproduce @Tp(0,0,-1)
+      e = -e
+    else:
+      nproduce @Tp(0,0,1)
+    nproduce @Ts(e)
+    # nF(length,size of a segment) 
+    nproduce ;(pedicelmod.color)_(diam/2.)nF(length,1/20.)
+
+SepalWhorl(t, size):
+  for i in range(4):
+    nproduce ;(SepalColor)[/(90*i)Sepal(t, size)]
+
+Sepal(t, size):
+  valrange = [0,1] # normalized sepal length
+  tau = hillcurve(t,SepalDelay,valrange,SepalHalfLife,SepalSuddenty)
+  sepalmod = SepalModel(size = size, curvesPatch = sepal_curves_func) # all values are initialized by default from global Sepal variables
+  if t < SepalLifespan :
+      produce SepalMod(sepalmod, tau)
+
+SepalMod(sepalmod, tau):
+    #tau is in [0,1], 0 = Sepal initiation, 1 = Sepal final state (t=infinite)
+    length = sepalmod.length(tau) # 2.0 #*tau
+    diam = sepalmod.diam(tau)
+    angle = sepalmod.opening_angle(tau)
+    width = sepalmod.width(tau)
+    #sepalnerve = sepalmod.getNerve(tau)
+    len_seg = length/nb_seg
+    sepalnerve = sepal_curves_func.getSectionAt(tau)
+    nproduce &(90)f(diam/2)&(-90)&(angle)
+    nproduce @Gc Sweep(sepalnerve,  # nerve curve at time tau
+                   section,     # section curve
+                   length,      # scaling factor for organ nerve
+                   len_seg,     # size of a segment as a proportion of 1
+                   width,       # scaling factor of width
+                   sepal_width_law # organ width law
+                   )
+
+PetalWhorl(t, size):
+  nproduce /(45);(PetalColor)
+  for i in range(4):
+    nproduce [/(90*i)Petal(t, size)]
+
+Petal(t, size):
+  valrange = [0,1] # to map t on tau
+  tau = hillcurve(t,PetalDelay,valrange,PetalHalfLife,PetalSuddenty)
+  petalmod = PetalModel(size = size, curvesPatch = petal_curves_func) # all values are initialized by default from global Sepal variables
+  if t < PetalLifespan :
+    produce PetalMod(petalmod, tau)
+
+PetalMod(petalmod, tau):
+    #tau is in [0,1], 0 = Sepal initiation, 1 = Sepal final state (t=infinite)
+    length = petalmod.length(tau) 
+    diam = petalmod.diam(tau)
+    angle = petalmod.opening_angle(tau)
+    width = petalmod.width(tau)
+    len_seg = length/nb_seg
+    #petalnerve = petalmod.getNerve(tau)
+    petalnerve = petal_curves_func.getSectionAt(tau)
+    nproduce &(90)f(diam/2)&(-90)&(angle)    
+    nproduce @Gc Sweep(petalnerve,   # nerve curve at time tau
+                   section,          # section curve
+                   length,           # scaling factor for organ nerve
+                   len_seg,          # size of a segment as a proportion of 1
+                   width,            # scaling factor of width
+                   petal_width_law   # organ width law
+                   )
+
+Carpel(t, size):
+  valrange = [0,1] # to map t on tau
+  tau = hillcurve(t,CarpelDelay,valrange,CarpelHalfLife,CarpelSuddenty)
+  carpelmod = CarpelModel(size = size) # all values are initialized by default from global Sepal variables
+  if t < CarpelLifespan :
+  	produce CarpelMod(carpelmod, tau)
+
+CarpelMod(carpelmod, tau):
+    length = carpelmod.length(tau) 
+    diam = carpelmod.diam(tau)
+    angle = carpelmod.opening_angle(tau)
+    width = carpelmod.width(tau)
+    nproduce ;(carpelmod.color)_(diam/2)F(length)
+    nproduce @O(diam/2)
+
+L(age, age_initiated, physio_age,r) :
+  #print(age, age_initiated, physio_age)
+  valrange = [0.1, 1.]
+  # target size of the leaf at date t
+  # 15 leaves in the rosette
+  targetsize = hillcurve(age,0.,valrange,20*T,1.)
+  if physio_age == 1: # veginflo state (cauline leaves)
+    sizefactor = 0.4
+    addangle = 30
+  else: #(vegetative leaves)
+    valrange = [0.001, 1.]
+    addangle = 0
+    sizefactor = hillcurve(age_initiated,0.,valrange,6.*T,2.)
+  size = leafsize*targetsize*sizefactor
+  nproduce ^(-20-(40*targetsize+addangle))
+  if physio_age == 1:
+    nproduce clLeaf(size,size,age,r)
+  else:
+    nproduce Leaf(size,size)
+
+clLeaf(l,w,age,r):
+  # to bend slightly the petiole
+  # r is a random seed attached to the Leaf that described its final degree of senescence
+  # tau maps the leaf age to its current bending (max bending defined by r) 
+  tau = hillcurve(age,0.,[0,r],20*day,3.)*rd.uniform(0.9,1.2)
+  nproduce ;(2)@Tp(0,0,-1)@Ts(rd.uniform(0.9,1.1)*0.02)
+  incline = -20 #max_leaf_petiol_deflection # - random()*max_leaf_petiol_deflection
+  nproduce ^((incline-tau*60)*rd.uniform(0.2,1.3))_(InternodeFinalDiam/8.)nF(l*petiol_prop,l*petiol_prop/10.)
+  nproduce @Tp(0,0,1) @Ts(rd.uniform(0.9,1.1)*0.01)
+  length = (1-petiol_prop)*l
+  len_seg = length/nb_seg
+  current_nerve = clnerve_curves_func.getSectionAt(tau)
+  nproduce ^(incline-tau*30)
+  nproduce ;(8)TextureRotation(180)TextureVScale(1/w)
+  produce @Gc Sweep(current_nerve,section,length,len_seg,w,width_law)
+
+Leaf(l,w):
+  # to bend slightly the petiole
+  nproduce ;(2)@Tp(0,0,-1)@Ts(rd.uniform(0.9,1.2)*0.02)
+  incline = -20 #max_leaf_petiol_deflection # - random()*max_leaf_petiol_deflection
+  nproduce ^(incline)_(InternodeFinalDiam/8.)nF(l*petiol_prop,l*petiol_prop/10.)
+  nproduce @Tp(0,0,1) @Ts(rd.uniform(0.9,1.1)*0.01)
+  length = (1-petiol_prop)*l
+  len_seg = length/nb_seg
+  nproduce ;(8)TextureRotation(180)TextureVScale(1/w)
+  produce @Gc Sweep(nerve,section,length,len_seg,w,width_law)
+
+endlsystem
+###### INITIALISATION ######
+
+__lpy_code_version__ = 1.1
+
+def __initialiseContext__(context):
+	import openalea.plantgl.all as pgl
+	Color_0 = pgl.Material("Color_0" , ambient = (32,32,32) , diffuse = 1.5 , specular = (89,89,89) , emission = (118,118,118) , )
+	Color_0.name = "Color_0"
+	context.turtle.setMaterial(0,Color_0)
+	Color_2 = pgl.Material("Color_2" , ambient = (43,80,18) , diffuse = 1.55 , specular = (2,2,2) , emission = (25,25,25) , shininess = 0 , )
+	Color_2.name = "Color_2"
+	context.turtle.setMaterial(2,Color_2)
+	Color_4 = pgl.Material("Color_4" , ambient = (0,0,60) , diffuse = 3 , )
+	Color_4.name = "Color_4"
+	context.turtle.setMaterial(4,Color_4)
+	Color_5 = pgl.Material("Color_5" , ambient = (60,0,60) , diffuse = 3 , )
+	Color_5.name = "Color_5"
+	context.turtle.setMaterial(5,Color_5)
+	Color_6 = pgl.Material("Color_6" , ambient = (66,108,5) , diffuse = 1.34259 , )
+	Color_6.name = "Color_6"
+	context.turtle.setMaterial(6,Color_6)
+	Color_7 = pgl.Material("Color_7" , ambient = (60,60,15) , diffuse = 3 , )
+	Color_7.name = "Color_7"
+	context.turtle.setMaterial(7,Color_7)
+	PGL_94180021818592 = pgl.ImageTexture("PGL_94180021818592" , "./leaf-senescence-age35.png" , )
+	PGL_94180021818592.name = "PGL_94180021818592"
+	Color_8 = pgl.Texture2D(image = PGL_94180021818592 , )
+	Color_8.name = "Color_8"
+	context.turtle.setMaterial(8,Color_8)
+	Color_14 = pgl.Material("Color_14" , ambient = (150,150,150) , diffuse = 1.06667 , )
+	Color_14.name = "Color_14"
+	context.turtle.setMaterial(14,Color_14)
+	context.animation_timestep = 0.01
+	context.options.setSelection('Warning with sharp module',0)
+	context.options.setSelection('Turtle Path Optimization',0)
+	import openalea.plantgl.all as pgl
+	sepal_width_law = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(0, 0.018134, 1),(0.0410178, 0.167349, 1),(0.332002, 0.163338, 1),(0.638432, 0.240216, 1),(0.919048, 0.177681, 1),(1, 0.00747046, 1)]) , 
+	    )
+	sepal_width_law.name = "sepal_width_law"
+	petal_width_law = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(0, 0, 1),(0.0595676, 0.250429, 1),(0.619638, 0.155816, 1),(0.904754, 0.204309, 1),(1, 0, 1)]) , 
+	    )
+	petal_width_law.name = "petal_width_law"
+	width_law = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(0, 0.018134, 1),(0.2847, 0.22124, 1),(0.638432, 0.240216, 1),(0.919048, 0.177681, 1),(1, 0.00747046, 1)]) , 
+	    )
+	width_law.name = "width_law"
+	pedicel_elasticity = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(0, 0.0589055, 1),(0.074324, 0.0135695, 1),(0.171829, 0.00523621, 1),(0.276324, -0.00755711, 1),(0.452539, -0.0645421, 1),(0.702974, -0.053088, 1),(1, 0.0203241, 1)]) , 
+	    )
+	pedicel_elasticity.name = "pedicel_elasticity"
+	panel_0 = ({'name': 'Functions', 'active': True, 'visible': True},[('Function',sepal_width_law),('Function',petal_width_law),('Function',width_law),('Function',pedicel_elasticity)])
+	import openalea.plantgl.all as pgl
+	nerve = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.143939, 0.0727273, 1),(0.166667, 0.0227273, 1),(0.338636, -0.0681818, 1),(0.45, -0.154545, 1)]) , 
+	    )
+	nerve.name = "nerve"
+	section = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.256416, -0.0840166, 1),(0.0565162, -0.150645, 1),(0.494569, 0.0034361, 1)]) , 
+	    )
+	section.name = "section"
+	petal_nerve1 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.166667, 0, 1),(0.166667, 0, 1),(0.355778, 0.0264249, 1),(0.570172, 0.0971782, 1)]) , 
+	    )
+	petal_nerve1.name = "petal_nerve1"
+	petal_nerve2 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.206363, -0.0297717, 1),(0.0409642, -0.0330797, 1),(0.209667, -0.0256752, 1),(0.338759, 0.00253189, 1)]) , 
+	    )
+	petal_nerve2.name = "petal_nerve2"
+	petal_nerve3 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.183207, -0.0463116, 1),(0.0483965, -0.0741934, 1),(0.248211, -0.05768, 1),(0.417558, -0.0116574, 1)]) , 
+	    )
+	petal_nerve3.name = "petal_nerve3"
+	sepal_nerve1 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.418854, -0.101639, 1),(-0.204179, -0.138266, 1),(0.201555, -0.171434, 1),(0.541946, -0.0914464, 1),(0.710968, 0.0432644, 1)]) , 
+	    )
+	sepal_nerve1.name = "sepal_nerve1"
+	sepal_nerve2 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.451934, -0.0983306, 1),(-0.184848, -0.121514, 1),(0.0746212, -0.135257, 1),(0.330647, -0.113962, 1),(0.509132, -0.0730586, 1)]) , 
+	    )
+	sepal_nerve2.name = "sepal_nerve2"
+	sepal_nerve3 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.465166, -0.108255, 1),(-0.143501, -0.103046, 1),(0.0802693, -0.119784, 1),(0.287858, -0.120264, 1),(0.418094, -0.106695, 1)]) , 
+	    )
+	sepal_nerve3.name = "sepal_nerve3"
+	clnerve1 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.143939, 0.0727273, 1),(0.166667, 0.0227273, 1),(0.338636, -0.0681818, 1),(0.45, -0.154545, 1)]) , 
+	    )
+	clnerve1.name = "clnerve1"
+	clnerve2 = pgl.NurbsCurve2D(	
+	    ctrlPointList = pgl.Point3Array([(-0.5, 0, 1),(-0.0632852, 0.108573, 1),(0.292129, 0.112343, 1),(0.168367, -0.395278, 1),(-0.110096, -0.266564, 1)]) , 
+	    )
+	clnerve2.name = "clnerve2"
+	panel_1 = ({'name': 'Curve2D', 'active': True, 'visible': True},[('Curve2D',nerve),('Curve2D',section),('Curve2D',petal_nerve1),('Curve2D',petal_nerve2),('Curve2D',petal_nerve3),('Curve2D',sepal_nerve1),('Curve2D',sepal_nerve2),('Curve2D',sepal_nerve3),('Curve2D',clnerve1),('Curve2D',clnerve2)])
+	parameterset = [panel_0,panel_1,]
+	context["__functions__"] = [('sepal_width_law',sepal_width_law),('petal_width_law',petal_width_law),('width_law',width_law),('pedicel_elasticity',pedicel_elasticity),]
+	context["__curves__"] = [('nerve',nerve),('section',section),('petal_nerve1',petal_nerve1),('petal_nerve2',petal_nerve2),('petal_nerve3',petal_nerve3),('sepal_nerve1',sepal_nerve1),('sepal_nerve2',sepal_nerve2),('sepal_nerve3',sepal_nerve3),('clnerve1',clnerve1),('clnerve2',clnerve2),]
+	context["__parameterset__"] = parameterset
+	context["sepal_width_law"] = pgl.QuantisedFunction(sepal_width_law)
+	context["petal_width_law"] = pgl.QuantisedFunction(petal_width_law)
+	context["width_law"] = pgl.QuantisedFunction(width_law)
+	context["pedicel_elasticity"] = pgl.QuantisedFunction(pedicel_elasticity)
+	context["nerve"] = nerve
+	context["section"] = section
+	context["petal_nerve1"] = petal_nerve1
+	context["petal_nerve2"] = petal_nerve2
+	context["petal_nerve3"] = petal_nerve3
+	context["sepal_nerve1"] = sepal_nerve1
+	context["sepal_nerve2"] = sepal_nerve2
+	context["sepal_nerve3"] = sepal_nerve3
+	context["clnerve1"] = clnerve1
+	context["clnerve2"] = clnerve2
+__authors__ = 'C. Godin\n'
+__institutes__ = 'Inria - RDP Mosaic'
+__copyright__ = 'C. Godin'
+__description__ = 'Model of Arabidopsis development\n\nSpatial and time units have been made realistic\n\nThe meristem has:\n\n- a state s consisting of two numbers: (x,d)\nx: physiological state (0: Vegetative, 1:VegInflo, 2:Inflo, 3: Flower)\nd: count of the number of organs produced in the current physiological state\n\n- a calendar age that counts the number of time units since the beginning of the simulation\n\n- a plastochrone age that counts the number of organ produced since it was created\n\n- a meristem can be dormant\n\n\n\n\n\n'
