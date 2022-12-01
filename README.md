@@ -9,7 +9,7 @@ The structure of PoinTr can be seen in Fig 1. The input point cloud is first con
 
 
 
-![alt text](https://github.com/Mona-ShZeinoddin/ROMI_3D_Growth_Modeling/blob/main/PoinTr_Review.png)
+![alt text](https://github.com/Mona-ShZeinoddin/ROMI_3D_Growth_Modeling/blob/main/Results.png)
  
 
 Figure 1:The Pipeline of PoinTr. The input partial point cloud is first downsampled to obtain the center points. Then, to extract the local and global information of the points and the proxies two different ANNs are used, the sum of the output of the two networks is fed into the geometry-aware transformer. A transformer architecture is utilized to predict the point proxies for the missing parts. A simple ANN is used at the end to complete the point cloud based on the predicted point proxies in a coarse-to-fine manner. 
