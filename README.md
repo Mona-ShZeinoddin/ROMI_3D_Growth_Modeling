@@ -20,7 +20,7 @@ In order to test PoinTr, two datasets have been developed using L-Py and then sa
 
 
 
-![alt text]([https://github.com/Mona-ShZeinoddin/ROMI_3D_Growth_Modeling/blob/main/PoinTr_Review.png](https://github.com/Mona-ShZeinoddin/ROMI_3D_Growth_Modeling/blob/main/Results.png)
+![alt text]([https://github.com/Mona-ShZeinoddin/ROMI_3D_Growth_Modeling/blob/main/PoinTr_Review.png](https://github.com/Mona-ShZeinoddin/ROMI_3D_Growth_Modeling/blob/main/Results.png))
 
 
 Figure 2: Results of PoinTr- Partial inputs (Green), Predicted outputs (Red) and Groundtruths (Blue) - First row: Testing a pretrained PoinTr network on the PCN dataset, CDL1 (chamfer distance L1) = 0.007263, CDL2 (chamfer distance L2) = 0.000227- Second row: Fientuning the pretrained PoinTr on the Stem dataset for 300 epochs, CDL1= 0.04, CDL2 = 0.0138 - Third row: Fientuning the pretrained PoinTr on the Arabidopsis dataset for 700 epochs, CDL1 = 0.003596, CDL2 = 0.000051 
