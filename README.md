@@ -1,6 +1,6 @@
 # ROMI_3D_Growth_Modeling
 
-##1 Introduction 
+## 1 Introduction 
 
 Plants are complex dynamical systems, i.e. systems that can be described by a state and its change over time. In classical dynamical systems, the system’s state is usually represented as a vector in Rn , for n fixed. The change in the system’s state is modeled by an evolution equation, often defined as a  differential equation, that makes it possible to compute the system’s state at time t+dt knowing the  system’s state at time t. Knowing the state, or an estimation of the state at a date t, it is thus possible to predict the system’s state in the future. 
 Procedural methods such as L-systems (Prunsinkiewicz, et al. 1996, Boudon, et al. 2012), are adequate for simulating plant growth starting from an initial state corresponding to a plant seed. But, as of today, they cannot easily be used to predict the development of a phenotyped plant. This is mainly due to the fact that producing a detailed L-string (formal string representing the state of the plant at a given date  in the L-system formalism) corresponding exactly to the phenotyped architecture is still mostly out of  reach at such a detailed level in the phenotyping community.
